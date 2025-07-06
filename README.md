@@ -4,7 +4,6 @@ Welcome to the **AI Agentic Workflows Suite**, a fully modular collection of **n
 
 Built with **real-world integrations** like **Twilio, Deepgram, DeepSeek, HeyGen, Airtable**, and **Google Calendar**, these workflows showcase how humanlike AI assistants can automate customer engagement, bookings, and content delivery.
 
----
 
 ## 📦 Tasks Overview
 
@@ -33,10 +32,7 @@ Built with **real-world integrations** like **Twilio, Deepgram, DeepSeek, HeyGen
 - Final video link is passed to the **frontend UI (React + MUI)**
 - Session data stored in **Airtable**
 
----
-
 ## 🧠 Key Features
-
 - 🔁 Smart loop/fallback logic for video generation
 - 🌐 Language detection (BM/EN)
 - 🧠 Humanlike LLM tone + metadata parsing
@@ -45,7 +41,6 @@ Built with **real-world integrations** like **Twilio, Deepgram, DeepSeek, HeyGen
 - 🧑‍💼 Avatar UI using **React + MUI**
 - 🛠️ All nodes are **noted with internal documentation** (see below)
 
----
 
 ## 🚀 Setup Instructions
 
