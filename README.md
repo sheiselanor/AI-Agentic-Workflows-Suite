@@ -1,49 +1,9 @@
-# 🤖 AI Agentic Workflows Suite – Conversational Automation with LLMs, Voice & Avatars
+This project includes three AI automation workflows built using n8n, integrating with tools like Twilio, Deepgram, DeepSeek, HeyGen, Airtable, and Google Calendar.
 
-Welcome to the **AI Agentic Workflows Suite**, a fully modular collection of **n8n-based** automation workflows for intelligent customer interaction through **voice calls, WhatsApp chat, and avatar-based web coaching**.
+Task 1 handles inbound voice calls, transcribes speech via Deepgram, understands booking intent using DeepSeek, creates calendar events, and stores data in Airtable.
+Task 2 is a humanlike WhatsApp chatbot with history tracking, product suggestions, and follow-up logic, powered by DeepSeek and Airtable.
+Task 3 generates avatar videos from AI replies using HeyGen, with fallback logic and a React + MUI frontend UI to display the result.
 
-Built with **real-world integrations** like **Twilio, Deepgram, DeepSeek, HeyGen, Airtable**, and **Google Calendar**, these workflows showcase how humanlike AI assistants can automate customer engagement, bookings, and content delivery.
+To test the flows, import the .json files into n8n — this will preserve all workflow notes and logic. JSON files do not show comments unless imported into n8n. Add your own API keys where prompted in the flows.
 
-
-## 📦 Tasks Overview
-
-### 🔊 Task 1 – AI Voice Call Booking Assistant
-- Inbound voice call trigger via **Twilio Studio Flow**
-- **Deepgram** transcribes audio to text
-- **DeepSeek LLM** extracts booking intent
-- Event is booked in **Google Calendar**
-- Logs stored in **Airtable**
-- Language: **Multilingual (Malay + English)**
-- Timezone: Properly handled for **UTC+8 (Malaysia)**
-
-### 💬 Task 2 – WhatsApp AI Chat Agent
-- Triggered by **Twilio WhatsApp messages**
-- Tracks prior conversation from **Airtable logs**
-- Replies using **DeepSeek LLM** with humanlike tone
-- Sends follow-ups if user remains silent
-- Simulated product suggestions (via function node)
-- Seamless ongoing chat loop with proper condition checks
-
-### 🧑‍💼 Task 3 – Avatar Coaching Assistant
-- User sends message, AI replies like a human coach
-- Avatar is generated using **HeyGen API**
-- Backend loops to wait until **status = completed**
-- If generation fails, fallback video is sent
-- Final video link is passed to the **frontend UI (React + MUI)**
-- Session data stored in **Airtable**
-
-## 🧠 Key Features
-- 🔁 Smart loop/fallback logic for video generation
-- 🌐 Language detection (BM/EN)
-- 🧠 Humanlike LLM tone + metadata parsing
-- 🔁 Webhook → LLM → API Chain flow
-- ✅ Airtable & Calendar CRM logs
-- 🧑‍💼 Avatar UI using **React + MUI**
-- 🛠️ All nodes are **noted with internal documentation** (see below)
-
-
-## 🚀 Setup Instructions
-
-### 1. Clone This Repo
-```bash
-git clone https://github.com/your-username/ai-agentic-workflows-suite.git
+Each workflow is modular, multilingual-aware (English + Malay), and includes Airtable logging. Make sure to run with stable internet, especially for avatar generation. HeyGen trial accounts are limited to 5 video generations/day.
