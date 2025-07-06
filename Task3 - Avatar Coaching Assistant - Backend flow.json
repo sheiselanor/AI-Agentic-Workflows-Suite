@@ -1,0 +1,1053 @@
+{
+  "name": "Task3 - Avatar Coaching Assistant - Backend flow",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/speech-to-text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "[ADD YOUR ELEVENLABS TOKEN]"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "file"
+            },
+            {
+              "name": "model_id",
+              "value": "=scribe_v1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        -420
+      ],
+      "id": "45e8eb05-5d4b-4227-8eca-aa99ff3835e7",
+      "name": "Transcribe Voice (ElevenLabs)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IAtowhrkPFM2bYvg",
+          "name": "xi-api-key"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -660
+      ],
+      "id": "e60f1607-25f8-4457-b45c-575cd0e525c1",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.voiptroubleshooter.com/open_speech/american/OSR_us_000_0019_8k.wav",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        -560
+      ],
+      "id": "ffcbfc2a-7fc0-46ac-9896-a61dfb91e13b",
+      "name": "HTTP Request (Download Audio)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Access binary data safely from input[0]\nconst binaryData = $input.item.binary;\n\n// This assumes the previous node has binary data under 'data'\nreturn [\n  {\n    binary: {\n      file: $binary.data, // Rename 'data' to 'file'\n    },\n    json: {},\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        -480
+      ],
+      "id": "d8ddb402-cad1-485b-bcb9-3e2011c734ff",
+      "name": "Rename Binary Key"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n  \"role\": \"system\",\n  \"content\": \"You are a professional life coach named Ava. You respond kindly, supportively, and ask guiding questions. Be motivational, empathetic, and inspiring. Keep answers short and conversational like a real session.\"\n},\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $node['Transcribe Voice (ElevenLabs)'].json.text }}\"\n    }\n  ],\n  \"temperature\": 0.7\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        -360
+      ],
+      "id": "8c84f549-426d-4971-95f2-1c80052b7834",
+      "name": "LLM - Coach Reply",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RgeoePJzTHDt7K0y",
+          "name": "Authorization"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.heygen.com/v2/video/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_inputs\": [\n    {\n      \"character\": {\n        \"type\": \"avatar\",\n        \"avatar_id\": \"Abigail_expressive_2024112501\",\n        \"avatar_style\": \"normal\"\n      },\n      \"voice\": {\n        \"type\": \"text\",\n        \"input_text\": \"{{ $node[\"LLM - Coach Reply\"].json.choices[0].message.content.replace(/\\n/g, ' ').replace(/\"/g, '\\\\\"') }}\",\n        \"voice_id\": \"119caed25533477ba63822d5d1552d25\",\n        \"speed\": 1\n      }\n    }\n  ],\n  \"dimension\": {\n    \"width\": 1280,\n    \"height\": 720\n  },\n  \"test\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1360,
+        -300
+      ],
+      "id": "f58e79d1-5383-4dd5-8a55-e5a5a2b3de48",
+      "name": "Generate Avatar Video",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zqfZRW1U67kf60QU",
+          "name": "X-Api-Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.heygen.com/v1/video_status.get?video_id={{ $json.data.video_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "ADD YOUR HEYGEN API KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -260
+      ],
+      "id": "49b06c27-a616-4735-a836-3d0f458d807d",
+      "name": "Get the Video URL"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1800,
+        -80
+      ],
+      "id": "0fddc6c3-9d7d-43d3-b5c9-00dfbe4907ae",
+      "name": "Wait",
+      "webhookId": "0ed13ac8-170e-4958-970c-22e6c9790bc0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2d159e92-30e7-4a21-a8c3-30f9764b6b3a",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "19f498dc-61fc-4638-9f77-1b020304406a",
+              "leftValue": "={{ $json.loop_count }}",
+              "rightValue": 10,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2660,
+        80
+      ],
+      "id": "5130fc4b-0232-4a0a-bddf-6fdbda3619aa",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f4c726f-6134-47a6-8e87-f3deca986fd1",
+              "name": "video_id",
+              "value": "={{ $json.data.id }}",
+              "type": "string"
+            },
+            {
+              "id": "7d986e44-6df0-4e19-98ea-f8d201301a84",
+              "name": "status",
+              "value": "={{ $json.data.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1660,
+        -180
+      ],
+      "id": "1919c9a6-cf3c-4bee-a21c-41fd870d6a5b",
+      "name": "Store Video ID"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3995d4c5-5712-4412-b1b3-857911960ab9",
+              "name": "ID",
+              "value": "={{ $json.data.id || \"Guest\" }}",
+              "type": "string"
+            },
+            {
+              "id": "29a69752-7dd8-4e53-9d82-1864d6f817b3",
+              "name": "Timestamp",
+              "value": "=={{ $now }}",
+              "type": "string"
+            },
+            {
+              "id": "1fa237f3-9768-4f0a-a9fb-321d6f4ce905",
+              "name": "Audio Transcript",
+              "value": "=={{ $node[\"Transcribe Voice (ElevenLabs)\"].json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "c0f4fb13-ee69-49cd-b123-70b26eb6f934",
+              "name": "AI Reply",
+              "value": "={{ $node[\"LLM - Coach Reply\"].json.choices[0].message.content }}",
+              "type": "string"
+            },
+            {
+              "id": "a6b651c1-7e70-4c19-a14d-5fc60f6a9a40",
+              "name": "Video URL",
+              "value": "={{ $json.data.video_url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2840,
+        0
+      ],
+      "id": "3eeba2ae-22e2-42ff-baad-04023147837f",
+      "name": "Prepare for CRM"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appoJRR6GYj5hhCy9",
+          "mode": "list",
+          "cachedResultName": "Task 3 - Avatar Coaching Assistant (Webapp)",
+          "cachedResultUrl": "https://airtable.com/appoJRR6GYj5hhCy9"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblv6gN2fBgxwmHgg",
+          "mode": "list",
+          "cachedResultName": "CoachingSessions",
+          "cachedResultUrl": "https://airtable.com/appoJRR6GYj5hhCy9/tblv6gN2fBgxwmHgg"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.data.id }}",
+            "Audio Transcript": "={{ $json[\"Audio Transcript\"] }}",
+            "AI Reply": "={{ $json[\"AI Reply\"] }}",
+            "Status": "={{ $json.status }}",
+            "Notes": "={{ \"Loop #\" + $json.loop_count }}",
+            "Video-URL": "={{ $json[\"Video URL\"] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Audio Transcript",
+              "displayName": "Audio Transcript",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "AI Reply",
+              "displayName": "AI Reply",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Video-URL",
+              "displayName": "Video-URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        3020,
+        0
+      ],
+      "id": "cf33fc0d-adaf-4ab7-87b2-edb829dc19b6",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "syQDT2OiStwGZbgS",
+          "name": "Airtable Personal Access Token account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.heygen.com/v1/video_status.get?video_id={{ $json.data.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2120,
+        80
+      ],
+      "id": "226f403b-0d6b-46d9-b126-18bc3fc08ff5",
+      "name": "Get Video Status",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zqfZRW1U67kf60QU",
+          "name": "X-Api-Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e074a581-54e4-4eae-9d2d-194b02bbe49c",
+              "name": "video_id",
+              "value": "={{ $json.data.id || $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "85f0bbc7-b102-42f0-be80-286cfd6fa995",
+              "name": "status",
+              "value": "={{ $json.data.status || $json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2300,
+        80
+      ],
+      "id": "383319ae-e16b-49ad-a7bb-ce6ada8f7731",
+      "name": "Set Status & Video ID"
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2840,
+        180
+      ],
+      "id": "0afc6bab-0860-4583-a7cd-1ba3be8b589c",
+      "name": "Wait1",
+      "webhookId": "0ed13ac8-170e-4958-970c-22e6c9790bc0"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse current loop_count safely\nlet count = 0;\n\nif ($json.loop_count) {\n  count = typeof $json.loop_count === 'string' ? parseInt($json.loop_count) : $json.loop_count;\n}\n\n// Return with incremented count\nreturn {\n  json: {\n    ...$json,\n    loop_count: count + 1\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        80
+      ],
+      "id": "2d75bbca-7946-485c-8b9d-0b724e1dc7f9",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4b54ac86-c742-4d9c-98bb-dfad33ee7b30",
+              "leftValue": "={{ $json.fields.Status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3220,
+        0
+      ],
+      "id": "46c597dd-72b6-46c0-aad2-f5d94c30ad76",
+      "name": "If status completed"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "061b42e0-081e-424a-8a64-c08555638f6d",
+              "name": "video_url",
+              "value": "={{ $json.fields[\"Video-URL\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3380,
+        -100
+      ],
+      "id": "69fad5b2-1809-42a4-95ec-2201d75c2b64",
+      "name": "Store Final Video URL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "46817ba6-333b-4e64-894d-635818393d19",
+              "name": "video_url",
+              "value": "https://app.heygen.com/share/9e00ab81c2fb47a0a1d44934254dc249",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3380,
+        100
+      ],
+      "id": "ee46b777-1f43-4bdc-a783-c386df0d57bb",
+      "name": "Set Fallback Video"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3580,
+        0
+      ],
+      "id": "d4e99035-99cf-41bd-a4d5-7f170e59160d",
+      "name": "Return Avatar Video (UI)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aee52a35-ab39-4816-a0be-82237858ab83",
+              "name": "loop_count",
+              "value": 0,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1940,
+        0
+      ],
+      "id": "8bb35561-a947-495e-b312-b7c9be7def22",
+      "name": "start loop"
+    },
+    {
+      "parameters": {
+        "content": "## 📝 Notes\n🟧 Sandbox Limitations: HeyGen Free Tier allows only 5 videos/day. You must use a paid API key for production.\n\n🔁 Loop Limitation: Due to how n8n handles workflow state, loop counters reset on each run. So loop_count remains 1 even after many loops.\n\n⚠️ Frontend-Backend Not Fully Connected: Response node exists, but the webhook was never triggered successfully from frontend due to UI setup issues.",
+        "height": 260,
+        "width": 560,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        920,
+        -60
+      ],
+      "typeVersion": 1,
+      "id": "f33e318d-0e1f-4ba8-9a64-db08a1b688c5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Trigger\nManual trigger to start the avatar assistant flow. Used for testing in development mode.\n",
+        "height": 120
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        140,
+        -680
+      ],
+      "typeVersion": 1,
+      "id": "e4fc811f-b88c-42f0-b8bb-f22b230b9c06",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Coach reply \nTakes transcript and prompts LLM (DeepSeek) to generate an emotionally intelligent coaching reply.\nReturns structured JSON with date, time, intent, and branch.\n",
+        "height": 180,
+        "width": 280
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1120,
+        -580
+      ],
+      "typeVersion": 1,
+      "id": "866c1b6b-7903-45f7-b5c9-a60f7b247060",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Wait \nWaits 20 seconds between polling attempts.\nUseful for giving HeyGen time to generate the video.\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1780,
+        -340
+      ],
+      "typeVersion": 1,
+      "id": "56706ed4-4585-43fe-b653-0f085d4e89eb",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Start loop\nFor loop control- here, not properly counting due to context loss across loops.\n",
+        "height": 140
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1660,
+        100
+      ],
+      "typeVersion": 1,
+      "id": "24b6172f-1424-4665-8b1e-2a5f960c3d20",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Video status\nChecks HeyGen API for the current video generation status (e.g., waiting, processing, completed).",
+        "height": 140,
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2080,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "0d112882-f554-44d6-afb3-8c78ad8e0150",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## status & video id\nUpdates latest status + video ID to pass down the loop.\n",
+        "height": 100,
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2320,
+        -140
+      ],
+      "typeVersion": 1,
+      "id": "ea601a0f-d258-4fdb-aa6d-2311f3a1461b",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## CRM preparation\nMaps audio transcript, AI reply, status, and final/fallback URL for Airtable storage.\n",
+        "height": 140,
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2740,
+        -200
+      ],
+      "typeVersion": 1,
+      "id": "886b9f97-0dee-417a-bc4f-ce8d660dfda9",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## Airtable\nLogs the session data: transcript, AI reply, video ID, status, and final URL.",
+        "height": 140
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2980,
+        -200
+      ],
+      "typeVersion": 1,
+      "id": "b0bdf018-fa20-40aa-bf8f-541bf8c139fb",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## fallback video\nUses a default motivational avatar video when HeyGen fails.\n",
+        "height": 120
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3320,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "44328fbd-129a-407f-99a4-d5d2c74185ce",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## webhook respond to UI\nReturns the video URL (generated or fallback) as JSON response.\nUsed by frontend to show the avatar experience.",
+        "height": 180,
+        "width": 260
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3800,
+        -20
+      ],
+      "typeVersion": 1,
+      "id": "92ff07db-2e59-48c6-ba06-cbe9fdf04d5f",
+      "name": "Sticky Note10"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Transcribe Voice (ElevenLabs)": {
+      "main": [
+        [
+          {
+            "node": "LLM - Coach Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Download Audio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Download Audio)": {
+      "main": [
+        [
+          {
+            "node": "Rename Binary Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rename Binary Key": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Voice (ElevenLabs)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Coach Reply": {
+      "main": [
+        [
+          {
+            "node": "Generate Avatar Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Avatar Video": {
+      "main": [
+        [
+          {
+            "node": "Get the Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the Video URL": {
+      "main": [
+        [
+          {
+            "node": "Store Video ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "start loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Prepare for CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Video ID": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for CRM": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Video Status": {
+      "main": [
+        [
+          {
+            "node": "Set Status & Video ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Status & Video ID": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Get Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "If status completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If status completed": {
+      "main": [
+        [
+          {
+            "node": "Store Final Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Fallback Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Final Video URL": {
+      "main": [
+        [
+          {
+            "node": "Return Avatar Video (UI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Fallback Video": {
+      "main": [
+        [
+          {
+            "node": "Return Avatar Video (UI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "start loop": {
+      "main": [
+        [
+          {
+            "node": "Get Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4d49b067-8526-45cb-b5d6-5de9645ef29b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1cada1e53ee2217bc3892b32cfdabc703144f839d48c234c2a041fc1215cfdff"
+  },
+  "id": "ZeK8Z6iNWNzhqwuy",
+  "tags": []
+}

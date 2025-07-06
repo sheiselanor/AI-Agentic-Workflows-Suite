@@ -1,0 +1,1701 @@
+{
+  "name": "Task 2 – AI WhatsApp Chat Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incoming-whatsapp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "123756a2-3626-4937-a616-0559881cb517",
+      "name": "Webhook",
+      "webhookId": "5a84af9e-f5e7-4496-a0e1-91831122e72a"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are Bob 🧑‍💼 — a friendly, funny, emotional AI WhatsApp assistant for a shoe brand. Respond with a humanlike tone, use hype, slang, emojis, and be SHORT and natural like texting. Detect and match the user's language (Malay/English or mixed). Recommend shoes, promotions, or branches if needed. No long responses. NEVER sound robotic.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify(\"Previous chat:\\n\" + $node[\"Function\"].json.ChatHistory + \"\\n\\nNew message: \" + $node[\"Function\"].json.LatestUserMessage) }}\n    }\n  ],\n  \"temperature\": 0.8\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        60
+      ],
+      "id": "0ceedba3-334b-4727-a716-d8db499ad4a0",
+      "name": "LLM - Friendly Reply Generator",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RgeoePJzTHDt7K0y",
+          "name": "Authorization"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const reply = $json.choices[0].message.content;\nconst sender = $node[\"Prepare for LLM\"].json.From;\n\nreturn {\n  json: {\n    reply,\n    to: sender\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        240
+      ],
+      "id": "b92494d0-d91f-4ac1-ae99-4cba11e4925f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/(replace-with{{TWILIO_SID}})/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+14155238886"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.reply }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2040,
+        60
+      ],
+      "id": "2379c663-e363-4c2f-824d-eadfd4ef33f2",
+      "name": "Send WhatsApp Reply",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "9BWHJQMBaXroB1BE",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a8921d05-8322-4e18-8016-912bfb7212fa",
+              "name": "Body",
+              "value": "={{ $node[\"Webhook\"].json.body.Body }}",
+              "type": "string"
+            },
+            {
+              "id": "69c388e5-4024-4248-9863-b2ba77e22e7b",
+              "name": "From",
+              "value": "={{ $node[\"Webhook\"].json.body.From }}",
+              "type": "string"
+            },
+            {
+              "id": "464620c5-1bde-4dab-b749-96934da35490",
+              "name": "ChatHistory",
+              "value": "={{ $node[\"Function\"].json.ChatHistory }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        840,
+        240
+      ],
+      "id": "51ff8f5d-cfc2-4883-a41e-f3bb22add7bd",
+      "name": "Prepare for LLM"
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2440,
+        220
+      ],
+      "id": "6d788f67-3b78-4731-bdb4-cfc950892102",
+      "name": "Follow-up1",
+      "webhookId": "f547ee5d-4bc6-4179-b5c6-660c2aac176f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const userMessage = $json.Body?.toLowerCase() || \"\";\n\n// Default mock response\nlet product = \"No relevant product found.\";\nlet promo = \"No current promotions for this request.\";\n\nif (userMessage.includes(\"nike\")) {\n  product = \"Nike Downshifter RM199 🏃‍♀️ Light and comfy untuk jog petang!\";\n  promo = \"Buy 1 get 30% off on 2nd pair today only!\";\n} else if (userMessage.includes(\"adidas\")) {\n  product = \"Adidas Galaxy 6 Size 9 still in stock! Mau hitam or putih? 👟\";\n  promo = \"40% off selected Adidas styles this week!\";\n} else if (userMessage.includes(\"crocs\")) {\n  product = \"100% ori Crocs baru masuk — legit tag and all 💯\";\n  promo = \"RM20 off Crocs this weekend only!\";\n\n} else if (userMessage.includes(\"promo\") || userMessage.includes(\"sale\")) {\n  product = \"🔥 Buy 2nd item at 30% off! Limited time at all branches.\";\n  promo = \"Use promo code: WHSP30 during checkout.\";\n\n} else if (userMessage.includes(\"futsal\")) {\n  product = \"Puma Future Play or Kelme Precision — best grip indoor court! ⚽️\";\n  promo = \"20% off futsal shoes with member card.\";\n}\n\nreturn [\n  {\n    json: {\n      productRecommendation: product,\n      promotionInfo: promo\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        240
+      ],
+      "id": "8ed7499e-1891-4ad2-83cb-b84c532ddda1",
+      "name": "Simulate HubSpot API"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eb20a869-e7bb-40a2-963f-be67e26da67b",
+              "name": "prompt",
+              "value": "=User message: {{ $node[\"Prepare for LLM\"].json.body.Body }}\nSuggested Product: {{ $node[\"Simulate HubSpot API\"].json.productRecommendation }}\nPromotion: {{ $node[\"Simulate HubSpot API\"].json.promotionInfo }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        240
+      ],
+      "id": "bb0b7b16-a287-4c0c-b578-4a57fa51f058",
+      "name": "prompt"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    model: \"deepseek-chat\",\n    messages: [\n      {\n        role: \"system\",\n        content: \"You are Bob 🧑‍💼 — a friendly, funny, emotional AI WhatsApp assistant for a shoe brand. Respond with a humanlike tone, use hype, slang, emojis, and be SHORT and natural like texting. Detect and match the user's language (Malay/English or mixed). Recommend shoes, promotions, or branches if needed. No long responses. NEVER sound robotic.\"\n      },\n      {\n        role: \"user\",\n        content: $node[\"prompt\"].json.prompt // Use correct previous node name\n      }\n    ],\n    temperature: 0.8\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        240
+      ],
+      "id": "18fa25b5-98cd-4dad-aa6e-2fe11aff602b",
+      "name": "Build DeepSeek JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputAll = $input.all();\n\n// Find the item from 'Prepare for LLM'\nconst prepareNode = inputAll.find(i => i.source?.node === 'Prepare for LLM');\nconst simulateNode = inputAll.find(i => i.source?.node === 'Simulate HubSpot API');\n\n// Get user message safely\nconst userMessage = prepareNode?.json?.body?.Body || \"Hi there!\";\n\n// Get product/promo safely\nconst product = simulateNode?.json?.productRecommendation || \"Let me know what kind of shoes you're looking for!\";\nconst promo = simulateNode?.json?.promotionInfo || \"I'll check if there's any special deal for you 😉\";\n\n// Return the combined prompt\nreturn [\n  {\n    json: {\n      prompt: `User message: ${userMessage}\\nSuggested Product: ${product}\\nPromotion: ${promo}`\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        240
+      ],
+      "id": "af9ebca5-9c1e-4ca7-9c9b-4aec8a509d46",
+      "name": "Build Prompt Text"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer": "={{ $json.to }}",
+            "Message Type": "initial",
+            "User Message": "={{ $node[\"Webhook\"].json.body.Body }}",
+            "Bot Reply": "={{ $node[\"LLM - Friendly Reply Generator\"].json.choices[0].message.content }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Customer",
+              "displayName": "Customer",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "User Message",
+              "displayName": "User Message",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bot Reply",
+              "displayName": "Bot Reply",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Message Type",
+              "displayName": "Message Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2220,
+        60
+      ],
+      "id": "31a89049-8b7f-4abe-9067-492146e1f656",
+      "name": "Create a record1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/[replace-with-twilio{SID}]/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+14155238886"
+            },
+            {
+              "name": "To",
+              "value": "={{ $node[\"Send WhatsApp Reply\"].json.to }}"
+            },
+            {
+              "name": "Body",
+              "value": "Hey there! Just checking in 👋 — let me know if you still need help. I'm here to assist! 😄"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3000,
+        300
+      ],
+      "id": "32852414-f5f1-47ab-83df-bc58f882f1a6",
+      "name": "First Follow-Up WhatsApp Message",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "9BWHJQMBaXroB1BE",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer": "={{ $json.to }}",
+            "Message Type": "Follow-up1",
+            "User Message": "No response",
+            "Bot Reply": "={{ $node[\"First Follow-Up WhatsApp Message\"].json.body }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Customer",
+              "displayName": "Customer",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "User Message",
+              "displayName": "User Message",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bot Reply",
+              "displayName": "Bot Reply",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Message Type",
+              "displayName": "Message Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        3180,
+        300
+      ],
+      "id": "4dd9e512-580b-4479-abab-8c8a6b9184e6",
+      "name": "Create a record2",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "filterByFormula": "=({Customer} = \"{{ $json.body.From }}\")",
+        "returnAll": false,
+        "limit": 5,
+        "options": {},
+        "sort": {
+          "property": [
+            {
+              "field": "Timestamp",
+              "direction": "desc"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "0d6633ba-554b-4c24-a53a-49e863159f15",
+      "name": "Search records",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter out auto-follow-ups (e.g., where user message is \"No response\")\nconst filtered = $input.all().filter(i => i.json[\"User Message\"]?.trim().toLowerCase() !== \"no response\");\n\n// Sort by timestamp\nconst sortedItems = filtered.sort((a, b) => {\n  return new Date(a.json.Timestamp).getTime() - new Date(b.json.Timestamp).getTime();\n});\n\nconst latestItem = sortedItems[sortedItems.length - 1];\nconst previousItems = sortedItems.slice(0, -1);\n\nconst history = previousItems.map(item => {\n  return `User: ${item.json[\"User Message\"]}\\nBob: ${item.json[\"Bot Reply\"]}`;\n}).join(\"\\n\");\n\nconst latest = latestItem?.json[\"User Message\"] || \"\";\n\nreturn [\n  {\n    json: {\n      ChatHistory: history,\n      LatestUserMessage: latest\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        60
+      ],
+      "id": "9c7f68fe-8658-4368-a8a1-a7066ee28be6",
+      "name": "Function"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "filterByFormula": "==AND({Customer} = \"{{ $json.fields.Customer }}\", IS_AFTER({Timestamp}, DATETIME_PARSE(\"{{ $json.fields.Timestamp }}\")))",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2640,
+        60
+      ],
+      "id": "14f1b50a-abec-4f6a-b310-457529cec98b",
+      "name": "Search Airtable Record Node (After Wait)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek-chat\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are Bob 🧑‍💼 — a friendly, funny, emotional AI WhatsApp assistant for a shoe brand. Respond with a humanlike tone, use hype, slang, emojis, and be SHORT and natural like texting. Detect and match the user's language (Malay/English or mixed). Recommend shoes, promotions, or branches if needed. No long responses. NEVER sound robotic.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"User message: {{ $node['Prepare for LLM1'].json.Body }}\\nSuggested Product: {{ $node['Simulate HubSpot API1'].json.productRecommendation }}\\nPromotion: {{ $node['Simulate HubSpot API1'].json.promotionInfo }}\"\n    }\n  ],\n  \"temperature\": 0.8\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        -300
+      ],
+      "id": "b23b7054-3f27-4a16-a8bb-1533b66a6adb",
+      "name": "LLM - Friendly Reply Generator1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RgeoePJzTHDt7K0y",
+          "name": "Authorization"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const reply = $json.choices[0].message.content;\nconst sender = $node[\"Prepare for LLM1\"].json.From;\n\nreturn {\n  json: {\n    reply,\n    to: sender\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        -120
+      ],
+      "id": "7fc1f1e6-b2fb-4ade-b098-ac3d5b36db77",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/[replace-with-twilio{SID}]/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+14155238886"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.reply }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2040,
+        -300
+      ],
+      "id": "79bc1a28-2817-4c0d-aae5-510e9195b39a",
+      "name": "Send WhatsApp Reply1",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "9BWHJQMBaXroB1BE",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a8921d05-8322-4e18-8016-912bfb7212fa",
+              "name": "Body",
+              "value": "={{ $node[\"Webhook\"].json.body.Body }}",
+              "type": "string"
+            },
+            {
+              "id": "69c388e5-4024-4248-9863-b2ba77e22e7b",
+              "name": "From",
+              "value": "={{ $node[\"Webhook\"].json.body.From }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        840,
+        -120
+      ],
+      "id": "8047f605-641e-4d36-b72d-6f50d52d622a",
+      "name": "Prepare for LLM1"
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2440,
+        -140
+      ],
+      "id": "4aca6a40-329f-408b-90fe-c8626f1da71b",
+      "name": "Follow-up",
+      "webhookId": "f547ee5d-4bc6-4179-b5c6-660c2aac176f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const userMessage = $json.Body?.toLowerCase() || \"\";\n\n// Default mock response\nlet product = \"No relevant product found.\";\nlet promo = \"No current promotions for this request.\";\n\nif (userMessage.includes(\"nike\")) {\n  product = \"Nike Downshifter RM199 🏃‍♀️ Light and comfy untuk jog petang!\";\n  promo = \"Buy 1 get 30% off on 2nd pair today only!\";\n} else if (userMessage.includes(\"adidas\")) {\n  product = \"Adidas Galaxy 6 Size 9 still in stock! Mau hitam or putih? 👟\";\n  promo = \"40% off selected Adidas styles this week!\";\n} else if (userMessage.includes(\"crocs\")) {\n  product = \"100% ori Crocs baru masuk — legit tag and all 💯\";\n  promo = \"RM20 off Crocs this weekend only!\";\n\n} else if (userMessage.includes(\"promo\") || userMessage.includes(\"sale\")) {\n  product = \"🔥 Buy 2nd item at 30% off! Limited time at all branches.\";\n  promo = \"Use promo code: WHSP30 during checkout.\";\n\n} else if (userMessage.includes(\"futsal\")) {\n  product = \"Puma Future Play or Kelme Precision — best grip indoor court! ⚽️\";\n  promo = \"20% off futsal shoes with member card.\";\n}\n\nreturn [\n  {\n    json: {\n      productRecommendation: product,\n      promotionInfo: promo\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -120
+      ],
+      "id": "bed95b45-8f8c-45cc-af44-7717faa800f1",
+      "name": "Simulate HubSpot API1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eb20a869-e7bb-40a2-963f-be67e26da67b",
+              "name": "prompt",
+              "value": "=User message: {{ $node[\"Prepare for LLM1\"].json.body.Body }}\nSuggested Product: {{ $node[\"Simulate HubSpot API1\"].json.productRecommendation }}\nPromotion: {{ $node[\"Simulate HubSpot API1\"].json.promotionInfo }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        -120
+      ],
+      "id": "6691c2b4-d9f1-4719-afe6-58bd05ed4cfa",
+      "name": "prompt1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    model: \"deepseek-chat\",\n    messages: [\n      {\n        role: \"system\",\n        content: \"You are Bob 🧑‍💼 — a friendly, funny, emotional AI WhatsApp assistant for a shoe brand. Respond with a humanlike tone, use hype, slang, emojis, and be SHORT and natural like texting. Detect and match the user's language (Malay/English or mixed). Recommend shoes, promotions, or branches if needed. No long responses. NEVER sound robotic.\"\n      },\n      {\n        role: \"user\",\n        content: $node[\"prompt1\"].json.prompt // Use correct previous node name\n      }\n    ],\n    temperature: 0.8\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        -120
+      ],
+      "id": "0abbd2a9-e76b-4ccc-9a74-e25e006bdadb",
+      "name": "Build DeepSeek JSON1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputAll = $input.all();\n\n// Find the item from 'Prepare for LLM'\nconst prepareNode = inputAll.find(i => i.source?.node === 'Prepare for LLM');\nconst simulateNode = inputAll.find(i => i.source?.node === 'Simulate HubSpot API');\n\n// Get user message safely\nconst userMessage = prepareNode?.json?.body?.Body || \"Hi there!\";\n\n// Get product/promo safely\nconst product = simulateNode?.json?.productRecommendation || \"Let me know what kind of shoes you're looking for!\";\nconst promo = simulateNode?.json?.promotionInfo || \"I'll check if there's any special deal for you 😉\";\n\n// Return the combined prompt\nreturn [\n  {\n    json: {\n      prompt: `User message: ${userMessage}\\nSuggested Product: ${product}\\nPromotion: ${promo}`\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        -120
+      ],
+      "id": "ac02bce7-e8e1-4cfe-861e-c53e3e109587",
+      "name": "Build Prompt Text1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer": "={{ $json.to }}",
+            "Message Type": "initial",
+            "User Message": "={{ $node[\"Webhook\"].json.body.Body }}",
+            "Bot Reply": "={{ $node[\"LLM - Friendly Reply Generator1\"].json.choices[0].message.content }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Customer",
+              "displayName": "Customer",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "User Message",
+              "displayName": "User Message",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bot Reply",
+              "displayName": "Bot Reply",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Message Type",
+              "displayName": "Message Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2220,
+        -300
+      ],
+      "id": "a0590a73-a21f-49a9-8f04-748597455ca1",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "filterByFormula": "=AND({Customer} = '{{ $json.fields.Customer }}', IS_AFTER({Timestamp}, '{{ $json.fields.Timestamp }}'))",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        2640,
+        -300
+      ],
+      "id": "02cfccaa-8475-4a56-9b57-9d3991ceb4d5",
+      "name": "Search Airtable Record Node (After Wait)1",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1cd675ba-3792-4ecf-90de-10ef18d16bee",
+              "leftValue": "={{ $items.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "c1ca981a-1d26-4f75-a92a-a55ee8f72d7f",
+      "name": "If (New User?)",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1a598e6-822b-42fb-b5cb-52bc0f31631a",
+              "leftValue": "={{ $items(\"Search Airtable Record Node (After Wait)1\").length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2780,
+        -120
+      ],
+      "id": "96aa66b8-812a-4980-acd5-cee2efe6df89",
+      "name": "If (Replay from New user?)",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1a598e6-822b-42fb-b5cb-52bc0f31631a",
+              "leftValue": "={{ $items(\"Search Airtable Record Node (After Wait)\").length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2780,
+        240
+      ],
+      "id": "eab0bab6-6c76-408d-9be6-34bc8482ca88",
+      "name": "If (Reply from Old User?)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/[replace-with-twilio-SID]/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "whatsapp:+14155238886"
+            },
+            {
+              "name": "To",
+              "value": "={{ $node[\"Send WhatsApp Reply1\"].json.to }}"
+            },
+            {
+              "name": "Body",
+              "value": "Hey there! Just checking in 👋 — let me know if you still need help. I'm here to assist! 😄"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3000,
+        -60
+      ],
+      "id": "9055cf8d-ab5d-4f94-8f29-61d739d55454",
+      "name": "First Follow-Up WhatsApp Message1",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "9BWHJQMBaXroB1BE",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appWoNoYXgRhZ6Vgc",
+          "mode": "list",
+          "cachedResultName": "AI WhatsApp Logs",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluJTwALgRr16Oxf",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appWoNoYXgRhZ6Vgc/tbluJTwALgRr16Oxf"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer": "={{ $json.to }}",
+            "Message Type": "Follow-up1",
+            "User Message": "No response",
+            "Bot Reply": "={{ $node[\"First Follow-Up WhatsApp Message1\"].json.body }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Customer",
+              "displayName": "Customer",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "User Message",
+              "displayName": "User Message",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bot Reply",
+              "displayName": "Bot Reply",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Message Type",
+              "displayName": "Message Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        3180,
+        -60
+      ],
+      "id": "229dbbe6-8398-44d7-9d90-8709aa2efd6d",
+      "name": "Create a record3",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "daNUZjNxOvphR3MU",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "errorMessage": "Follow-up message sent to the user. System will auto trigger once the user send a message!"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        3380,
+        -60
+      ],
+      "id": "7e6ae5ad-c979-4d57-a4c9-d5f58fb135cb",
+      "name": "End of New User Path"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Follow-up message sent to the user. System will auto trigger once the user send a message!"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        3360,
+        300
+      ],
+      "id": "493f537a-11d3-44c9-b6a5-d733118dcead",
+      "name": "End of Old User Path"
+    },
+    {
+      "parameters": {
+        "content": "## Simulate HubSpot API\nProduct & Promo Generator\nSimulates product recommendations and promotions.\nUsed to personalize the LLM prompt."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1000,
+        -300
+      ],
+      "typeVersion": 1,
+      "id": "d673b4f4-0877-435c-b6f5-a05d8768713e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Wait for User Reply\nDelays flow to check if user responds.\n5-min timer before deciding to send follow-up."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2360,
+        380
+      ],
+      "typeVersion": 1,
+      "id": "0471aeaa-93cf-4a37-9bf7-a61513fc5219",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Log Conversation\nLogs: User, Message, Bot Reply, Message Type, Timestamp.\nUsed for context, follow-ups, and analytics."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2100,
+        280
+      ],
+      "typeVersion": 1,
+      "id": "64dd5e54-a853-4a05-a65e-1cb8898bdd88",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Generate Bot Reply\nDeepSeek generates humanlike reply based on chat & context.\nModel: deepseek-chat, Temp: 0.8.",
+        "height": 180
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1700,
+        -520
+      ],
+      "typeVersion": 1,
+      "id": "7c7e6f6d-62d4-481b-88e6-5eec3de1a926",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Send Message via Twilio\nSends LLM response back to user on WhatsApp.\n⚠️ Sandbox Limit: Max 10 unique outbound messages/day (number-specific).\nAvoid testing with too many new phone numbers.",
+        "height": 240,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1980,
+        -580
+      ],
+      "typeVersion": 1,
+      "id": "f36d4ec7-f99d-4e68-824c-029b5e308d74",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Build Prompt Input\nConstructs dynamic prompt for DeepSeek using:\n\nUser Message\nProduct Suggestion\nPromo Info\nChat History (if old user)",
+        "height": 200
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        740,
+        -340
+      ],
+      "typeVersion": 1,
+      "id": "408a29c7-2228-493c-ae42-70b8aef3f11d",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## New vs Old User\nChecks if user exists in Airtable.\nRoute to new/old user flow accordingly.",
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        380,
+        -180
+      ],
+      "typeVersion": 1,
+      "id": "c69c76bb-d235-44dc-910e-5fcca8f60100",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Check User History\nSearches Airtable for previous messages from this user.\nHelps identify if user is new or returning."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        180,
+        180
+      ],
+      "typeVersion": 1,
+      "id": "8437c6b9-8129-49f9-8534-aa98bf3f814c",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## Incoming WhatsApp Message\nTriggered when a user sends a message.\nCaptures Body, From, To.",
+        "width": 280,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -140,
+        180
+      ],
+      "typeVersion": 1,
+      "id": "2271da73-0ef8-43fd-bfd3-8146bc887273",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## AI WhatsApp Agent Workflow\nHandles real-time and follow-up chats via Twilio → DeepSeek LLM → Airtable CRM.\nDistinguishes new vs old users. Triggers follow-ups if no reply.\n\n",
+        "width": 600,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -380
+      ],
+      "id": "38ad7554-53df-4439-b2e7-0e2f161c1352",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Check for Reply\nLooks for new user message (timestamp > last log).\nIf none, triggers follow-up.",
+        "height": 120
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2580,
+        -460
+      ],
+      "typeVersion": 1,
+      "id": "3cb11ea4-7f89-456f-8dd0-df0c09ee72b7",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "## Reply Found?\nYes: Restart flow with new message\n\nNo: Send follow-up message"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2800,
+        -320
+      ],
+      "typeVersion": 1,
+      "id": "a1425816-8a43-4c2d-bf43-9645d08927ab",
+      "name": "Sticky Note11"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Friendly Reply Generator": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for LLM": {
+      "main": [
+        [
+          {
+            "node": "Simulate HubSpot API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply": {
+      "main": [
+        [
+          {
+            "node": "Create a record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up1": {
+      "main": [
+        [
+          {
+            "node": "Search Airtable Record Node (After Wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate HubSpot API": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prompt": {
+      "main": [
+        [
+          {
+            "node": "Build DeepSeek JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DeepSeek JSON": {
+      "main": [
+        [
+          {
+            "node": "LLM - Friendly Reply Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt Text": {
+      "main": [
+        [
+          {
+            "node": "prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record1": {
+      "main": [
+        [
+          {
+            "node": "Follow-up1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Follow-Up WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Create a record2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record2": {
+      "main": [
+        [
+          {
+            "node": "End of Old User Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "If (New User?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function": {
+      "main": [
+        [
+          {
+            "node": "Prepare for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Airtable Record Node (After Wait)": {
+      "main": [
+        [
+          {
+            "node": "If (Reply from Old User?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Friendly Reply Generator1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply1": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for LLM1": {
+      "main": [
+        [
+          {
+            "node": "Simulate HubSpot API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Search Airtable Record Node (After Wait)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate HubSpot API1": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt Text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prompt1": {
+      "main": [
+        [
+          {
+            "node": "Build DeepSeek JSON1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DeepSeek JSON1": {
+      "main": [
+        [
+          {
+            "node": "LLM - Friendly Reply Generator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt Text1": {
+      "main": [
+        [
+          {
+            "node": "prompt1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Airtable Record Node (After Wait)1": {
+      "main": [
+        [
+          {
+            "node": "If (Replay from New user?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (New User?)": {
+      "main": [
+        [
+          {
+            "node": "Prepare for LLM1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (Replay from New user?)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "First Follow-Up WhatsApp Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (Reply from Old User?)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "First Follow-Up WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Follow-Up WhatsApp Message1": {
+      "main": [
+        [
+          {
+            "node": "Create a record3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record3": {
+      "main": [
+        [
+          {
+            "node": "End of New User Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1ec94d69-e893-4ac3-92e5-68393a3567b3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1cada1e53ee2217bc3892b32cfdabc703144f839d48c234c2a041fc1215cfdff"
+  },
+  "id": "ni2Ls5wzTEuXB3bd",
+  "tags": []
+}
